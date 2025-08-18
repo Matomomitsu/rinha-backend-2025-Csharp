@@ -1,0 +1,53 @@
+services:
+
+  api-1: &api-service
+    container_name: api-1
+    #build: .
+    image: rinhabackend:latest
+    expose:
+      - "8080"
+    hostname: api-1
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      - PaymentProcessorDefault=http://payment-processor-default:8080
+      - PaymentProcessorFallback=http://payment-processor-fallback:8080
+    networks:
+      - backend
+      - payment-processor
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 2s
+        max_attempts: 10
+        window: 5s
+      resources:
+        limits:
+          cpus: "0.8"
+          memory: "220MB"
+
+  load-balancer:
+    container_name: load-balancer
+    image: nginx:alpine
+    ports:
+      - "9999:9999"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api-1
+    networks:
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: "0.2"
+          memory: "30MB"
+
+networks:
+  backend:
+    name: backend
+    driver: bridge
+  payment-processor:
+    name: payment-processor
+    driver: bridge
+    external: true
